@@ -8,6 +8,16 @@ class OpenAsarInstall:
         self.url = "https://github.com/GooseMod/OpenAsar/releases/download/nightly/app.asar"
         self.size_limit = 4000000
 
+    def get_latest_app_folder(self,path):
+        if not os.path.isdir(path): return None
+        highest = None
+        for item in os.listdir(path):
+            if os.path.isdir(os.path.join(path,item)) and item.startswith("app-"):
+                # Got one - check if it's a higher value
+                if highest is None or self.u.compare_versions(highest.split("-")[1].strip(),item.split("-")[1].strip()):
+                    highest = item
+        return highest
+
     def get_asar_locations(self):
         path_list = []
         if platform.system().lower() == "darwin": # On macOS
@@ -18,8 +28,10 @@ class OpenAsarInstall:
                     settings_path = os.path.expanduser("~/Library/Application Support/{}/settings.json".format(folder_name))
                     path_list.append((discord,check_path,settings_path,size))
         elif os.name == "nt": # Got Windows
-            for discord,folder_name in (("Discord","app-1.0.9012"),("DiscordPTB","app-1.0.1027"),("DiscordCanary","app-1.0.60")):
-                check_path = os.path.join(os.path.expandvars("%localappdata%"),discord,folder_name,"resources","app.asar")
+            for discord in ("Discord","DiscordPTB","DiscordCanary"):
+                latest = self.get_latest_app_folder(os.path.join(os.path.expandvars("%localappdata%"),discord))
+                if not latest: continue # Not found
+                check_path = os.path.join(os.path.expandvars("%localappdata%"),discord,latest,"resources","app.asar")
                 if os.path.isfile(check_path):
                     size = os.path.getsize(check_path)
                     settings_path = os.path.join(os.path.expandvars("%appdata%"),discord.lower(),"settings.json")
@@ -37,7 +49,7 @@ class OpenAsarInstall:
             self.u.head()
             print("")
             if not path_list:
-                print(" - Discord not found in /Applications")
+                print(" - No Discord installations found" + "" if os.name=="nt" else " in /Applications")
             else:
                 print("Located Discord Apps:\n")
                 for i,x in enumerate(path_list,start=1):
